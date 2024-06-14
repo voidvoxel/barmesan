@@ -372,29 +372,35 @@ export class ProgressBar extends EventEmitter {
     delete this.intervals[intervalId];
   }
 
-  public start(
+  public async start(
     callback: ProgressBarStartCallback
   ) {
-    let elapsedTime = 0;
-    let previousTime = Date.now();
+    return new Promise(
+      resolve => {
+        let elapsedTime = 0;
+        let previousTime = Date.now();
 
-    while (this.progress <= this.max) {
-      const now = Date.now();
+        while (this.progress <= this.max) {
+          const now = Date.now();
 
-      const deltaTime = (now - previousTime) || 0;
+          const deltaTime = (now - previousTime) || 0;
 
-      elapsedTime += deltaTime;
+          elapsedTime += deltaTime;
 
-      const e: IProgressBarStepEvent = {
-        deltaTime,
-        elapsedTime,
-        progressBar: this
-      };
+          const e: IProgressBarStepEvent = {
+            deltaTime,
+            elapsedTime,
+            progressBar: this
+          };
 
-      callback(e);
+          callback(e);
 
-      previousTime = now;
-    }
+          previousTime = now;
+        }
+
+        resolve(elapsedTime);
+      }
+    )
   }
 
   public override toString() {
