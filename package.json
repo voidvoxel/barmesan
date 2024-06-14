@@ -1,0 +1,36 @@
+{
+  "name": "barmesan",
+  "version": "0.0.0",
+  "description": "A simple progress bar utility library",
+  "main": "dist/index.js",
+  "type": "module",
+  "types": "dist/index.d.ts",
+  "dependencies": {
+    "events": "^3.3.0"
+  },
+  "devDependencies": {
+    "@types/events": "^3.0.3",
+    "@types/node": "^20.14.2",
+    "jest": "^29.7.0",
+    "shx": "^0.3.4",
+    "undici-types": "^5.26.5"
+  },
+  "scripts": {
+    "build": "shx rm -rf dist/ && tsc --declaration --declarationMap",
+    "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/voidvoxel/progress-bar.git"
+  },
+  "keywords": [
+    "progress",
+    "bar"
+  ],
+  "author": "Ashlynne Juniper",
+  "license": "MPL-2.0",
+  "bugs": {
+    "url": "https://github.com/voidvoxel/progress-bar/issues"
+  },
+  "homepage": "https://github.com/voidvoxel/progress-bar#readme"
+}

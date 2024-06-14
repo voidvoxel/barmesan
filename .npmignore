@@ -1,0 +1,20 @@
+# Ashlynne Juniper (c) 2024
+
+## Hidden directories
+.git/
+.vscode/
+
+## Directories
+node_modules/
+src/
+tests/
+
+## Hidden files
+.gitattributes
+.npmignore
+
+## Files
+tsconfig.json
+
+## File patterns
+*/*.test.js

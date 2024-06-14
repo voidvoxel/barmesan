@@ -1,2 +1,3 @@
-# progress-bar
- A simple progress bar utility library
+# `barmesan`
+
+A simple progress bar utility library.
