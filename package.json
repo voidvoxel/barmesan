@@ -21,7 +21,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/voidvoxel/progress-bar.git"
+    "url": "git+https://github.com/voidvoxel/barmesan.git"
   },
   "keywords": [
     "progress",
@@ -30,7 +30,7 @@
   "author": "Ashlynne Juniper",
   "license": "MPL-2.0",
   "bugs": {
-    "url": "https://github.com/voidvoxel/progress-bar/issues"
+    "url": "https://github.com/voidvoxel/barmesan/issues"
   },
-  "homepage": "https://github.com/voidvoxel/progress-bar#readme"
+  "homepage": "https://github.com/voidvoxel/barmesan#readme"
 }
