@@ -2,10 +2,13 @@ import { ProgressBar } from "../dist/index.js";
 
 const bar = new ProgressBar(
   {
+    clearWhenFull: true,
+    reuseLine: true,
     thresholds: {
-      cool: 0.75,
-      warm: 0.89,
-      hot: 0.98
+      warm: 0.7,
+      cool: 0.89,
+      cold: 0.98,
+      reverse: true
     }
   }
 );

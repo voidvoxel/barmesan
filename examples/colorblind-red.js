@@ -2,6 +2,7 @@ import { ProgressBar } from "../dist/index.js";
 
 const bar = new ProgressBar(
   {
+    colorBlindnessMode: "r",
     thresholds: {
       cool: 0.75,
       warm: 0.89,

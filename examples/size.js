@@ -2,10 +2,9 @@ import { ProgressBar } from "../dist/index.js";
 
 const bar = new ProgressBar(
   {
+    size: 64,
     thresholds: {
-      cool: 0.75,
-      warm: 0.89,
-      hot: 0.98
+      cool: NaN
     }
   }
 );

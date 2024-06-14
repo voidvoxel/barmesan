@@ -101,30 +101,65 @@ function colorBarSegment(
   thresholds: IProgressBarThresholds,
   empty: boolean = false,
   colorBlindnessMode?: ColorBlindnessMode,
+  invertColors: boolean = false
 ) {
+  if (typeof thresholds.cold === "undefined") thresholds.cold = 0.0;
+  if (typeof thresholds.cool === "undefined") thresholds.cool = 0.25;
+  if (typeof thresholds.warm === "undefined") thresholds.warm = 0.5;
+  if (typeof thresholds.hot === "undefined") thresholds.hot = 0.75;
+
   colorBlindnessMode ??= "";
 
   colorBlindnessMode = colorBlindnessMode.toLowerCase() as ColorBlindnessMode;
 
+  let coldTone = ConsoleColor.bg.cyan;
   let coolTone = ConsoleColor.bg.green;
+  let warmTone = ConsoleColor.bg.yellow;
+  let hotTone = ConsoleColor.bg.red;
 
   if (colorBlindnessMode.startsWith("r")) coolTone = ConsoleColor.bg.magenta;
 
+  if (invertColors) {
+    let tmp;
+
+    tmp = coldTone;
+    coldTone = hotTone;
+    hotTone = tmp;
+
+    tmp = coolTone;
+    coolTone = warmTone;
+    warmTone = tmp;
+  }
+
   // Empty
   if (empty) return colorText(string, ConsoleColor.bg.gray);
-  // Hot
-  if (percentage >= thresholds.hot) return colorText(string, ConsoleColor.bg.red);
-  // Warm
-  else if (percentage >= thresholds.warm) return colorText(string, ConsoleColor.bg.yellow);
-  // Cool
-  else if (percentage >= thresholds.cool) return colorText(string, coolTone);
-  // Cold
-  return colorText(string, ConsoleColor.bg.cyan);
+
+  if (thresholds.reverse) {
+    // Cold
+    if (!isNaN(thresholds.cold) && percentage >= thresholds.cold) return colorText(string, coldTone);
+    // Cool
+    else if (!isNaN(thresholds.cool) && percentage >= thresholds.cool) return colorText(string, coolTone);
+    // Warm
+    else if (!isNaN(thresholds.warm) && percentage >= thresholds.warm) return colorText(string, warmTone);
+    // Hot
+    return colorText(string, hotTone);
+  } else {
+    // Hot
+    if (!isNaN(thresholds.hot) && percentage >= thresholds.hot) return colorText(string, hotTone);
+    // Warm
+    else if (!isNaN(thresholds.warm) && percentage >= thresholds.warm) return colorText(string, warmTone);
+    // Cool
+    else if (!isNaN(thresholds.cool) && percentage >= thresholds.cool) return colorText(string, coolTone);
+    // Cold
+    return colorText(string, coldTone);
+  }
 }
 
 export interface IProgressBarThresholds {
+  cold: number;
   cool: number;
   hot: number;
+  reverse: boolean;
   warm: number;
 }
 
@@ -132,6 +167,7 @@ export interface IProgressBarOptions {
   colorBlindnessMode: ColorBlindnessMode;
   clearWhenFull: boolean;
   colorMode: boolean;
+  invertColors: boolean;
   max: number;
   min: number;
   reuseLine: boolean;
@@ -172,6 +208,7 @@ export class ProgressBar extends EventEmitter {
   private _previousString: string;
   private _progress: number;
   private _reuseLine: boolean;
+  private _shouldInvertColors: boolean;
   private _size: number;
   private _thresholds: IProgressBarThresholds;
 
@@ -198,18 +235,23 @@ export class ProgressBar extends EventEmitter {
 
     if (options.min && (!options.max || options.max <= options.min)) throw new RangeError(`If \`options.min\` is set, then \`options.max\` must be a number greater than \`options.min\`.`);
 
+    options.thresholds ??= {
+      cold: 0.0,
+      cool: 0.25,
+      warm: 0.5,
+      hot: 0.75,
+      reverse: false
+    };
+
     const colorBlindnessMode = options.colorBlindnessMode ??= "";
     const isColorModeEnabled = options.colorMode ??= true;
     const size = options.size ??= DEFAULT_SIZE;
     const max = options.max ??= 1;
     const min = options.min ??= 0;
-    const reuseLine = options.reuseLine ??= false;
-    const shouldClearLine = options.clearWhenFull ??= true;
-    const thresholds = options.thresholds ??= {
-      cool: 0.25,
-      warm: 0.5,
-      hot: 0.75
-    };
+    const reuseLine = options.reuseLine ??= true;
+    const shouldClearLine = options.clearWhenFull ??= reuseLine;
+    const shouldInvertColors = options.invertColors ??= false
+    const thresholds = options.thresholds;
 
     this._min = min;
     this._max = max;
@@ -218,6 +260,7 @@ export class ProgressBar extends EventEmitter {
     this._colorBlindnessMode = colorBlindnessMode;
     this._size = size;
     this._isColorModeEnabled = isColorModeEnabled;
+    this._shouldInvertColors = shouldInvertColors;
     this._thresholds = thresholds;
 
     this._intervals = {};
@@ -374,7 +417,7 @@ export class ProgressBar extends EventEmitter {
 
   public async start(
     callback: ProgressBarStartCallback
-  ) {
+  ): Promise<number> {
     return new Promise(
       resolve => {
         let elapsedTime = 0;
@@ -412,8 +455,8 @@ export class ProgressBar extends EventEmitter {
     };
 
     if (this._isColorModeEnabled) {
-      segments.full = colorBarSegment(segments.empty, this.percentage, this.thresholds, false, this.colorBlindnessMode);
-      segments.empty = colorBarSegment(segments.empty, this.percentage, this.thresholds, true, this.colorBlindnessMode);
+      segments.full = colorBarSegment(segments.empty, this.percentage, this.thresholds, false, this.colorBlindnessMode, this._shouldInvertColors);
+      segments.empty = colorBarSegment(segments.empty, this.percentage, this.thresholds, true, this.colorBlindnessMode, this._shouldInvertColors);
     }
 
     let i = 0;
