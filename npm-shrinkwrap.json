@@ -1,12 +1,12 @@
 {
   "name": "barmesan",
-  "version": "1.0.0-alpha.2.1",
+  "version": "1.0.0-alpha.2.1.1",
   "lockfileVersion": 3,
   "requires": true,
   "packages": {
     "": {
       "name": "barmesan",
-      "version": "1.0.0-alpha.2.1",
+      "version": "1.0.0-alpha.2.1.1",
       "license": "MPL-2.0",
       "dependencies": {
         "events": "^3.3.0"
