@@ -6,6 +6,8 @@ const DEV_NULL = {
   write: () => {}
 };
 
+type ColorBlindnessMode = "" | "none" | "r" | "red" | "g" | "green" | "b" | "blue";
+
 class BackgroundConsoleColor {
   static get blue() {
     return 44;
@@ -96,30 +98,82 @@ const DEFAULT_SIZE = 50;
 function colorBarSegment(
   string: string,
   percentage: number,
-  empty: boolean
+  thresholds: IProgressBarThresholds,
+  empty: boolean = false,
+  colorBlindnessMode?: ColorBlindnessMode,
 ) {
-  if (empty) return colorText(string, ConsoleColor.bg.gray);
-  if (percentage >= 1.0) return colorText(string, ConsoleColor.bg.cyan);
-  else if (percentage >= 0.89) return colorText(string, ConsoleColor.bg.green);
-  else if (percentage >= 0.6) return colorText(string, ConsoleColor.bg.yellow);
+  colorBlindnessMode ??= "";
 
-  return colorText(string, ConsoleColor.bg.red);
+  colorBlindnessMode = colorBlindnessMode.toLowerCase() as ColorBlindnessMode;
+
+  let coolTone = ConsoleColor.bg.green;
+
+  if (colorBlindnessMode.startsWith("r")) coolTone = ConsoleColor.bg.magenta;
+
+  // Empty
+  if (empty) return colorText(string, ConsoleColor.bg.gray);
+  // Hot
+  if (percentage >= thresholds.hot) return colorText(string, ConsoleColor.bg.red);
+  // Warm
+  else if (percentage >= thresholds.warm) return colorText(string, ConsoleColor.bg.yellow);
+  // Cool
+  else if (percentage >= thresholds.cool) return colorText(string, coolTone);
+  // Cold
+  return colorText(string, ConsoleColor.bg.cyan);
+}
+
+export interface IProgressBarThresholds {
+  cool: number;
+  hot: number;
+  warm: number;
 }
 
 export interface IProgressBarOptions {
-  colorMode: boolean,
-  max: number,
-  min: number,
-  size: number
+  colorBlindnessMode: ColorBlindnessMode;
+  clearWhenFull: boolean;
+  colorMode: boolean;
+  max: number;
+  min: number;
+  reuseLine: boolean;
+  size: number;
+  thresholds: IProgressBarThresholds;
 }
 
+interface IIntervals {
+  [index: number]: NodeJS.Timeout;
+}
+
+interface IPreviousIntervalTimes {
+  [index: number]: number;
+}
+
+interface IProgressBarStepEvent {
+  deltaTime: number;
+  elapsedTime: number;
+  progressBar: ProgressBar;
+}
+
+interface IProgressBarIntervalEvent extends IProgressBarStepEvent {
+  interval: NodeJS.Timeout;
+  intervalId: number;
+}
+
+type ProgressBarStartCallback = (e: IProgressBarStepEvent) => unknown;
+type ProgressBarIntervalCallback = (e: IProgressBarIntervalEvent) => unknown;
+
 export class ProgressBar extends EventEmitter {
+  private _colorBlindnessMode: ColorBlindnessMode;
+  private _clearWhenFull: boolean;
+  private _intervals: IIntervals;
+  private _previousIntervalTimes: IPreviousIntervalTimes;
   private _isColorModeEnabled: boolean;
   private _min: number;
   private _max: number;
   private _previousString: string;
   private _progress: number;
+  private _reuseLine: boolean;
   private _size: number;
+  private _thresholds: IProgressBarThresholds;
 
   public static string(
     min: number,
@@ -144,18 +198,79 @@ export class ProgressBar extends EventEmitter {
 
     if (options.min && (!options.max || options.max <= options.min)) throw new RangeError(`If \`options.min\` is set, then \`options.max\` must be a number greater than \`options.min\`.`);
 
+    const colorBlindnessMode = options.colorBlindnessMode ??= "";
     const isColorModeEnabled = options.colorMode ??= true;
     const size = options.size ??= DEFAULT_SIZE;
     const max = options.max ??= 1;
     const min = options.min ??= 0;
+    const reuseLine = options.reuseLine ??= false;
+    const shouldClearLine = options.clearWhenFull ??= true;
+    const thresholds = options.thresholds ??= {
+      cool: 0.25,
+      warm: 0.5,
+      hot: 0.75
+    };
 
     this._min = min;
     this._max = max;
+    this._reuseLine = reuseLine;
+    this._clearWhenFull = shouldClearLine;
+    this._colorBlindnessMode = colorBlindnessMode;
     this._size = size;
     this._isColorModeEnabled = isColorModeEnabled;
+    this._thresholds = thresholds;
 
+    this._intervals = {};
+    this._previousIntervalTimes = {};
     this._progress = 0.0;
     this._previousString = "";
+
+    this.once(
+      "full",
+      () => {
+        for (let intervalId in this.intervals) this.clearInterval(parseInt(intervalId));
+      }
+    );
+  }
+
+  public get colorBlindnessMode() {
+    return this._colorBlindnessMode;
+  }
+
+  public set colorBlindnessMode(
+    value: ColorBlindnessMode
+  ) {
+    this._colorBlindnessMode;
+  }
+
+  private get intervals() {
+    return this._intervals;
+  }
+
+  private set intervals(
+    value: IIntervals
+  ) {
+    this.intervals = value;
+  }
+
+  private get previousIntervalTimes() {
+    return this._previousIntervalTimes;
+  }
+
+  private set previousIntervalTimes(
+    value: IPreviousIntervalTimes
+  ) {
+    this._previousIntervalTimes = value;
+  }
+
+  public get removeWhenFull() {
+    return this._clearWhenFull;
+  }
+
+  private set removeWhenFull(
+    value: boolean
+  ) {
+    this._clearWhenFull = value;
   }
 
   public get max() {
@@ -192,35 +307,97 @@ export class ProgressBar extends EventEmitter {
     this.update(value);
   }
 
+  public get reuseLine() {
+    return this._reuseLine;
+  }
+
+  private set reuseLine(
+    value: boolean
+  ) {
+    this._reuseLine = value;
+  }
+
   public get size() {
     return this._size;
   }
 
-  start(
-    callback: (progressBar: ProgressBar) => number
-  ): Promise<ProgressBar> {
-    return new Promise(
-      (resolve, reject) => {
-        const interval = setInterval(
-          () => {
-            const value = callback(this);
-
-            this.update(value);
-
-            if (this.progress >= this.max) {
-              clearInterval(interval);
-
-              resolve(this);
-
-              return;
-            }
-          }
-        );
-      }
-    )
+  public get thresholds() {
+    return this._thresholds;
   }
 
-  toString() {
+  public interval(
+    callback: ProgressBarIntervalCallback,
+    delay: number = 100
+  ) {
+    const intervalId = Math.round(Math.random() * 0xFFFFFFFF);
+
+    let elapsedTime = 0;
+
+    const interval = setInterval(
+      () => {
+        const now = Date.now();
+        const previousTime = this.previousIntervalTimes[intervalId];
+
+        const deltaTime = (now - previousTime) || 0;
+
+        elapsedTime += deltaTime;
+
+        const e: IProgressBarIntervalEvent = {
+          deltaTime,
+          elapsedTime,
+          interval,
+          intervalId,
+          progressBar: this
+        };
+
+        this.previousIntervalTimes[intervalId] = Date.now();
+
+        callback(e);
+      },
+      delay
+    );
+
+    this.once("full", () => this.clearInterval(intervalId));
+
+    return intervalId;
+  }
+
+  public clearInterval(
+    intervalId: number
+  ) {
+    const interval = this.intervals[intervalId];
+
+    clearInterval(interval);
+
+    delete this.intervals[intervalId];
+  }
+
+  public start(
+    callback: ProgressBarStartCallback
+  ) {
+    let elapsedTime = 0;
+    let previousTime = Date.now();
+
+    while (this.progress <= this.max) {
+      const now = Date.now();
+
+      const deltaTime = (now - previousTime) || 0;
+
+      elapsedTime += deltaTime;
+
+      const e: IProgressBarStepEvent = {
+        deltaTime,
+        elapsedTime,
+        progressBar: this
+      };
+
+      callback(e);
+
+      previousTime = now;
+    }
+  }
+
+  public override toString() {
     let string = "";
 
     const segments = {
@@ -229,8 +406,8 @@ export class ProgressBar extends EventEmitter {
     };
 
     if (this._isColorModeEnabled) {
-      segments.full = colorBarSegment(segments.empty, this.percentage, false);
-      segments.empty = colorBarSegment(segments.empty, this.percentage, true);
+      segments.full = colorBarSegment(segments.empty, this.percentage, this.thresholds, false, this.colorBlindnessMode);
+      segments.empty = colorBarSegment(segments.empty, this.percentage, this.thresholds, true, this.colorBlindnessMode);
     }
 
     let i = 0;
@@ -256,7 +433,7 @@ export class ProgressBar extends EventEmitter {
     return `|${string}|`;
   }
 
-  update(
+  public update(
     value: number
   ) {
     const previousProgress = this.progress;
@@ -264,7 +441,18 @@ export class ProgressBar extends EventEmitter {
     this._progress = value;
 
     /* Emit events. */
-    if (this.progress >= this.max) this.emit("finish", this);
+    if (this.progress <= 0) this.emit("empty", this);
+    if (this.progress >= this.max) {
+      if (this.removeWhenFull) this._clearLine();
+
+      if (!this.reuseLine) {
+        this._newLine();
+      }
+
+      this.emit("full", this);
+
+      return;
+    }
 
     if (this.toString() === this._previousString) {
       this.emit("idle", this);
@@ -282,6 +470,23 @@ export class ProgressBar extends EventEmitter {
     return this;
   }
 
+  private _clearLine(
+    value: string = ""
+  ) {
+    const stdout: NodeJS.WriteStream = globalThis.process ? process.stdout : DEV_NULL as unknown as NodeJS.WriteStream;
+
+    stdout.clearLine(0);
+    stdout.cursorTo(0);
+
+    stdout.write(value);
+  }
+
+  private _newLine() {
+    console.log();
+
+    this._clearLine();
+  }
+
   private _update$write(
     progress: number,
     previousProgress: number
@@ -290,9 +495,7 @@ export class ProgressBar extends EventEmitter {
 
     const stdout: NodeJS.WriteStream = globalThis.process ? process.stdout : DEV_NULL as unknown as NodeJS.WriteStream;
 
-    stdout.clearLine(0);
-    stdout.cursorTo(0);
-    stdout.write(this.toString());
+    this._clearLine(this.toString());
   }
 }
 
