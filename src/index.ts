@@ -6,7 +6,7 @@ const DEV_NULL = {
   write: () => {}
 };
 
-type ColorBlindnessMode = "" | "none" | "r" | "red" | "g" | "green" | "b" | "blue";
+type BarmesanColorBlindnessMode = "" | "none" | "r" | "red" | "g" | "green" | "b" | "blue";
 
 class BackgroundConsoleColor {
   static get blue() {
@@ -98,9 +98,9 @@ const DEFAULT_SIZE = 50;
 function colorBarSegment(
   string: string,
   percentage: number,
-  thresholds: IProgressBarThresholds,
+  thresholds: IBarmesanThresholds,
   empty: boolean = false,
-  colorBlindnessMode?: ColorBlindnessMode,
+  colorBlindnessMode?: BarmesanColorBlindnessMode,
   invertColors: boolean = false
 ) {
   if (typeof thresholds.cold === "undefined") thresholds.cold = NaN;
@@ -110,7 +110,7 @@ function colorBarSegment(
 
   colorBlindnessMode ??= "";
 
-  colorBlindnessMode = colorBlindnessMode.toLowerCase() as ColorBlindnessMode;
+  colorBlindnessMode = colorBlindnessMode.toLowerCase() as BarmesanColorBlindnessMode;
 
   let coldTone = ConsoleColor.bg.cyan;
   let coolTone = ConsoleColor.bg.green;
@@ -155,7 +155,7 @@ function colorBarSegment(
   }
 }
 
-export interface IProgressBarThresholds {
+export interface IBarmesanThresholds {
   cold: number;
   cool: number;
   hot: number;
@@ -163,19 +163,21 @@ export interface IProgressBarThresholds {
   warm: number;
 }
 
+export type BarmesanRenderMode = "color";
+
 export interface IProgressBarOptions {
-  colorBlindnessMode: ColorBlindnessMode;
+  colorBlindnessMode: BarmesanColorBlindnessMode;
   clearWhenFull: boolean;
-  colorMode: boolean;
+  renderMode?: BarmesanRenderMode;
   invertColors: boolean;
   max: number;
   min: number;
   reuseLine: boolean;
   size: number;
-  thresholds: IProgressBarThresholds;
+  thresholds: IBarmesanThresholds;
 }
 
-interface IIntervals {
+interface IBarmesanIntervals {
   [index: number]: NodeJS.Timeout;
 }
 
@@ -198,11 +200,11 @@ type ProgressBarStartCallback = (e: IProgressBarStepEvent) => unknown;
 type ProgressBarIntervalCallback = (e: IProgressBarIntervalEvent) => unknown;
 
 export class ProgressBar extends EventEmitter {
-  private _colorBlindnessMode: ColorBlindnessMode;
+  private _colorBlindnessMode: BarmesanColorBlindnessMode;
   private _clearWhenFull: boolean;
-  private _intervals: IIntervals;
+  private _intervals: IBarmesanIntervals;
   private _previousIntervalTimes: IPreviousIntervalTimes;
-  private _isColorModeEnabled: boolean;
+  private _renderMode: BarmesanRenderMode;
   private _min: number;
   private _max: number;
   private _previousString: string;
@@ -210,7 +212,7 @@ export class ProgressBar extends EventEmitter {
   private _reuseLine: boolean;
   private _shouldInvertColors: boolean;
   private _size: number;
-  private _thresholds: IProgressBarThresholds;
+  private _thresholds: IBarmesanThresholds;
 
   public static string(
     min: number,
@@ -244,7 +246,7 @@ export class ProgressBar extends EventEmitter {
     };
 
     const colorBlindnessMode = options.colorBlindnessMode ??= "";
-    const isColorModeEnabled = options.colorMode ??= true;
+    const renderMode = options.renderMode ??= "color";
     const size = options.size ??= DEFAULT_SIZE;
     const max = options.max ??= 1;
     const min = options.min ??= 0;
@@ -259,7 +261,7 @@ export class ProgressBar extends EventEmitter {
     this._clearWhenFull = shouldClearLine;
     this._colorBlindnessMode = colorBlindnessMode;
     this._size = size;
-    this._isColorModeEnabled = isColorModeEnabled;
+    this._renderMode = renderMode;
     this._shouldInvertColors = shouldInvertColors;
     this._thresholds = thresholds;
 
@@ -276,27 +278,27 @@ export class ProgressBar extends EventEmitter {
     );
   }
 
-  public get colorBlindnessMode() {
+  public get colorBlindnessMode(): BarmesanColorBlindnessMode {
     return this._colorBlindnessMode;
   }
 
   public set colorBlindnessMode(
-    value: ColorBlindnessMode
+    value: BarmesanColorBlindnessMode
   ) {
     this._colorBlindnessMode;
   }
 
-  private get intervals() {
+  private get intervals(): IBarmesanIntervals {
     return this._intervals;
   }
 
   private set intervals(
-    value: IIntervals
+    value: IBarmesanIntervals
   ) {
     this.intervals = value;
   }
 
-  private get previousIntervalTimes() {
+  private get previousIntervalTimes(): IPreviousIntervalTimes {
     return this._previousIntervalTimes;
   }
 
@@ -306,7 +308,7 @@ export class ProgressBar extends EventEmitter {
     this._previousIntervalTimes = value;
   }
 
-  public get removeWhenFull() {
+  public get removeWhenFull(): boolean {
     return this._clearWhenFull;
   }
 
@@ -316,7 +318,17 @@ export class ProgressBar extends EventEmitter {
     this._clearWhenFull = value;
   }
 
-  public get max() {
+  public get renderMode(): BarmesanRenderMode {
+    return this._renderMode;
+  }
+
+  public set renderMode(
+    value: BarmesanRenderMode
+  ) {
+    this._renderMode = value;
+  }
+
+  public get max(): number {
     return this._max;
   }
 
@@ -326,7 +338,7 @@ export class ProgressBar extends EventEmitter {
     this._max = value;
   }
 
-  public get min() {
+  public get min(): number {
     return this._min;
   }
 
@@ -336,11 +348,11 @@ export class ProgressBar extends EventEmitter {
     this._min = value;
   }
 
-  public get percentage() {
+  public get percentage(): number {
     return (this.progress - this.min) / (this.max - this.min);
   }
 
-  public get progress() {
+  public get progress(): number {
     return this._progress;
   }
 
@@ -350,7 +362,7 @@ export class ProgressBar extends EventEmitter {
     this.update(value);
   }
 
-  public get reuseLine() {
+  public get reuseLine(): boolean {
     return this._reuseLine;
   }
 
@@ -360,11 +372,11 @@ export class ProgressBar extends EventEmitter {
     this._reuseLine = value;
   }
 
-  public get size() {
+  public get size(): number {
     return this._size;
   }
 
-  public get thresholds() {
+  public get thresholds(): IBarmesanThresholds {
     return this._thresholds;
   }
 
@@ -454,7 +466,7 @@ export class ProgressBar extends EventEmitter {
       full: " "
     };
 
-    if (this._isColorModeEnabled) {
+    if (this.renderMode === "color") {
       segments.full = colorBarSegment(segments.empty, this.percentage, this.thresholds, false, this.colorBlindnessMode, this._shouldInvertColors);
       segments.empty = colorBarSegment(segments.empty, this.percentage, this.thresholds, true, this.colorBlindnessMode, this._shouldInvertColors);
     }
@@ -477,9 +489,7 @@ export class ProgressBar extends EventEmitter {
       i++;
     }
 
-    if (this._isColorModeEnabled) return string;
-
-    return `|${string}|`;
+    return string;
   }
 
   public update(
@@ -492,10 +502,12 @@ export class ProgressBar extends EventEmitter {
     /* Emit events. */
     if (this.progress <= 0) this.emit("empty", this);
     if (this.progress >= this.max) {
-      if (this.removeWhenFull) this._clearLine();
+      if (this.renderMode) {
+        if (this.removeWhenFull) this._clearLine();
 
-      if (!this.reuseLine) {
-        this._newLine();
+        if (!this.reuseLine) {
+          this._newLine();
+        }
       }
 
       this.emit("full", this);
@@ -507,7 +519,7 @@ export class ProgressBar extends EventEmitter {
       this.emit("idle", this);
     } else {
       if (this.progress > previousProgress) {
-        this._update$write(this.progress, previousProgress);
+        if (this.renderMode) this._update$write(this.progress, previousProgress);
 
         this.emit("increase", this);
       }
