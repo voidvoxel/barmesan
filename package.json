@@ -5,9 +5,6 @@
   "main": "dist/index.js",
   "type": "module",
   "types": "dist/index.d.ts",
-  "dependencies": {
-    "events": "^3.3.0"
-  },
   "devDependencies": {
     "@types/events": "^3.0.3",
     "@types/node": "^20.14.2",
