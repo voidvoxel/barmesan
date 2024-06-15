@@ -1,17 +1,7 @@
 import { ProgressBar } from "../dist/index.js";
 
-// Define options to create a new progress bar with.
-const options = {
-  thresholds: {
-    cold: NaN,
-    cool: 0,
-    warm: NaN,
-    hot: NaN
-  }
-};
-
 // Create a progress bar.
-const progressBar = new ProgressBar(options);
+const progressBar = new ProgressBar();
 
 // Pseudo download function.
 function download(downloadSizeInBytes) {
