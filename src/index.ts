@@ -103,10 +103,10 @@ function colorBarSegment(
   colorBlindnessMode?: ColorBlindnessMode,
   invertColors: boolean = false
 ) {
-  if (typeof thresholds.cold === "undefined") thresholds.cold = 0.0;
-  if (typeof thresholds.cool === "undefined") thresholds.cool = 0.25;
-  if (typeof thresholds.warm === "undefined") thresholds.warm = 0.5;
-  if (typeof thresholds.hot === "undefined") thresholds.hot = 0.75;
+  if (typeof thresholds.cold === "undefined") thresholds.cold = NaN;
+  if (typeof thresholds.cool === "undefined") thresholds.cool = 0;
+  if (typeof thresholds.warm === "undefined") thresholds.warm = NaN;
+  if (typeof thresholds.hot === "undefined") thresholds.hot = NaN;
 
   colorBlindnessMode ??= "";
 
@@ -236,10 +236,10 @@ export class ProgressBar extends EventEmitter {
     if (options.min && (!options.max || options.max <= options.min)) throw new RangeError(`If \`options.min\` is set, then \`options.max\` must be a number greater than \`options.min\`.`);
 
     options.thresholds ??= {
-      cold: 0.0,
-      cool: 0.25,
-      warm: 0.5,
-      hot: 0.75,
+      cold: NaN,
+      cool: 0,
+      warm: NaN,
+      hot: NaN,
       reverse: false
     };
 
