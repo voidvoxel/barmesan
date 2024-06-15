@@ -2,10 +2,7 @@ import { ProgressBar } from "../dist/index.js";
 
 const bar = new ProgressBar(
   {
-    size: 64,
-    thresholds: {
-      cool: NaN
-    }
+    size: 64
   }
 );
 
