@@ -1,4 +1,4 @@
-# `barmesan`
+# Barmesan
 
 Barmesan is a simple progress bar utility library.
 
