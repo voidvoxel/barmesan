@@ -1,6 +1,6 @@
 {
   "name": "barmesan",
-  "version": "1.0.0-alpha.2.1.2",
+  "version": "1.0.0-alpha.3",
   "description": "A simple progress bar utility library",
   "main": "dist/index.js",
   "type": "module",
