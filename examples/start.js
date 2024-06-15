@@ -1,19 +1,25 @@
 import { ProgressBar } from "../dist/index.js";
 
-const bar = new ProgressBar(
-  {
-    thresholds: {
-      cool: 0.75,
-      warm: 0.89,
-      hot: 0.98
-    }
+// Pseudo download function.
+function download(downloadSizeInBytes) {
+  // Create a progress bar.
+  const progressBar = new ProgressBar();
+
+  // The total number of bytes downloaded.
+  let downloadedByteCount = 0;
+
+  // Receive the next set of bytes.
+  function downloadMoreBytes(e) {
+    // Add to the total number of downloaded bytes.
+    downloadedByteCount += e.deltaTime;
+
+    // Update the progress bar.
+    progressBar.progress = downloadedByteCount / downloadSizeInBytes;
   }
-);
 
-function step(e) {
-  const { deltaTime, progressBar } = e;
-
-  progressBar.progress += 0.01 * (deltaTime * 0.02);
+  // Start the task.
+  progressBar.start(downloadMoreBytes);
 }
 
-bar.start(step);
+// Pretend to download a file.
+download(1000);
